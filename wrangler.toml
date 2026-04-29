@@ -2,7 +2,7 @@ name = "weather-mcp"
 main = "weather.py"
 compatibility_date = "2026-04-29"
 
-# 必须添加此标志以启用 Python 支持
+# 必须添加此标志以启用 Python 支持 ok 
 compatibility_flags = ["python_workers"]
 
 [build]
