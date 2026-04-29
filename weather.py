@@ -5,7 +5,7 @@ import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 
-# 初始化 FastMCP
+# 初始化 FastMCP CF 部署
 mcp = FastMCP("weather", log_level="ERROR")
 
 NWS_API_BASE = os.getenv("NWS_API_BASE", "https://api.weather.gov/")
