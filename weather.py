@@ -1,15 +1,24 @@
-import json
 import os
+import json
 from typing import Any
+
 import httpx
 from mcp.server.fastmcp import FastMCP
 from mcp.server.sse import SseServerTransport
 
-# 初始化 FastMCP CF 部署
+# ==========================================
+# 1. 初始化 FastMCP 应用
+# ==========================================
+# 注意：在 Serverless 环境中，通常建议将实例放在全局
 mcp = FastMCP("weather", log_level="ERROR")
+
+# ==========================================
+# 2. 工具函数与 API 调用
+# ==========================================
 
 NWS_API_BASE = os.getenv("NWS_API_BASE", "https://api.weather.gov/")
 USER_AGENT = os.getenv("USER_AGENT", "weather-mcp/1.0")
+
 
 async def make_nws_request(url: str) -> dict[str, Any] | None:
     """Make a request to the NWS API and return the JSON response."""
@@ -23,6 +32,7 @@ async def make_nws_request(url: str) -> dict[str, Any] | None:
             print(f"Error making request to NWS API: {e}")
             return None
 
+
 def format_alert(feature: dict) -> str:
     """Format an alert feature into a readable string."""
     props = feature["properties"]
@@ -33,6 +43,11 @@ Severity: {props.get('severity', 'Unknown')}
 Description: {props.get('description', 'No description available')}
 Instructions: {props.get('instruction', 'No specific instructions provided')}
 """
+
+
+# ==========================================
+# 3. MCP Tools 定义
+# ==========================================
 
 @mcp.tool()
 async def get_alerts(state: str) -> str:
@@ -52,6 +67,7 @@ async def get_alerts(state: str) -> str:
 
     alerts = [format_alert(feature) for feature in data["features"]]
     return "\n---\n".join(alerts)
+
 
 @mcp.tool()
 async def get_forecast(latitude: float, longitude: float) -> str:
@@ -89,20 +105,21 @@ Forecast: {period['detailedForecast']}
 
     return "\n---\n".join(forecasts)
 
-# Cloudflare Workers 的入口函数
-async def main():
-    # 获取端口，默认 8000（Cloudflare Workers 固定端口）
-    port = int(os.getenv("PORT", 8000))
 
-    # 创建 SSE 传输层
-    transport = SseServerTransport("/mcp", port=port)
+# ==========================================
+# 4. Cloudflare Worker 入口 (关键修改)
+# ==========================================
 
-    # 运行服务器
-    async with transport.run_as_server(mcp):
-        print(f"MCP Weather Server running on port {port}")
-        # 保持运行，直到停止
-        await transport.serve()
+# 创建一个全局的 SSE 传输层
+# 注意：在 Workers 中，我们不需要指定 port，而是处理 request
+sse = SseServerTransport("/mcp/sse")
 
-if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+
+async def handle_request(request, env, context):
+    """
+    Cloudflare Worker 的标准入口函数。
+    所有请求都会经过这里，并被转发给 MCP 服务器处理。
+    """
+    # 将 request 交给 mcp server 处理
+    # mcp.server.run 会处理 SSE 连接和消息交换
+    return await mcp.run(request)

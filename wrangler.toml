@@ -1,0 +1,11 @@
+name = "weather-mcp"
+main = "weather.py"
+compatibility_date = "2026-04-29"
+
+# 必须配置构建命令以安装 Python 依赖
+[build]
+command = "pip install -r requirements.txt"
+
+# 启用 Python Worker 支持 (如果平台需要显式开启)
+[build.upload]
+format = "modules"
